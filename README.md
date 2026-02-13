@@ -144,11 +144,6 @@ Wichtige Variablen (Auszug):
 
 - Handbuch (PDF): `USVWatch_Handbuch_Manual_DE-EN_v1.pdf`
 
-## Sicherheit (wichtig)
-
-Bitte keine echten SMTP-Zugangsdaten in GitHub committen.
-Empfehlung: `usvwatch.env` im Repo als Template belassen und Zugangsdaten nur lokal auf dem NAS setzen.
-
 ## Autor
 
 Copyright (c) 2026 Roman Glos
