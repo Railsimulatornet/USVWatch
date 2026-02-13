@@ -42,7 +42,7 @@ USVWatch_Handbuch_Manual_DE-EN_v1.pdf
 ## Installation (Quickstart)
 
 1) Ordner auf das NAS kopieren, z.B.:
-`/volumeX/docker/USVWatch/usvwatch/`
+`/volumeX/docker/usvwatch/`
 
 2) Konfiguration anpassen:
 - Datei `usvwatch/usvwatch.env` bearbeiten
