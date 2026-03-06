@@ -38,8 +38,25 @@ start() {
 stop() {
   if is_running; then
     pid="$(cat "$PIDFILE" 2>/dev/null)"
+
     kill "$pid" 2>/dev/null || true
-    sleep 1
+    pkill -TERM -P "$pid" 2>/dev/null || true
+
+    i=0
+    while kill -0 "$pid" 2>/dev/null; do
+      i=$((i + 1))
+      if [ "$i" -ge 12 ]; then
+        break
+      fi
+      sleep 1
+    done
+
+    if kill -0 "$pid" 2>/dev/null; then
+      pkill -KILL -P "$pid" 2>/dev/null || true
+      kill -KILL "$pid" 2>/dev/null || true
+      sleep 1
+    fi
+
     if kill -0 "$pid" 2>/dev/null; then
       echo "FAILED TO STOP (pid $pid still running)" >&2
       return 1
