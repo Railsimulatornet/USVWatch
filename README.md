@@ -204,7 +204,7 @@ Wichtig: In der ursprünglich hochgeladenen Version war `restart` defekt, weil `
 
 ## Dokumentation
 
-- [Handbuch (PDF)](USVWatch_Handbuch_Manual_DE-EN_v1.pdf)
+- [Handbuch (PDF)](USVWatch_Handbuch_Manual_DE-EN_v2.pdf)
 
 ## Lizenz
 
