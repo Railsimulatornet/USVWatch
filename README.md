@@ -34,7 +34,7 @@ USVWatch/
 │  ├─ usvwatch.py
 │  ├─ usvwatch.env
 │  └─ usvwatch-loop.sh
-└─ USVWatch_Handbuch_Manual_DE-EN_v1.pdf
+└─ USVWatch_Handbuch_Manual_DE-EN_v2.pdf
 ```
 
 ## Voraussetzungen
