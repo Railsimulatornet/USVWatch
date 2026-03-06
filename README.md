@@ -27,8 +27,7 @@ usvwatch/
   usvwatch.py
   usvwatch-loop.sh
   usvwatch.env
-docs/
-  images/
+Screens/
     usvwatch-stromausfall.jpg
     usvwatch-netzstrom.jpg
 USVWatch_Handbuch_Manual_DE-EN_v1.pdf
@@ -67,12 +66,6 @@ chmod +x usvwatch-loop.sh
 ```bash
 ./usvwatch-loop.sh status
 ./usvwatch-loop.sh tail
-```
-
-Stop / Restart:
-```bash
-./usvwatch-loop.sh stop
-./usvwatch-loop.sh restart
 ```
 
 ## CLI Optionen
