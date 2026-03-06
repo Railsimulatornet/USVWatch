@@ -16,8 +16,12 @@ is_running() {
 }
 
 start() {
-  if is_running; then exit 0; fi
-  cd "$DIR" || exit 1
+  if is_running; then
+    echo "RUNNING (pid $(cat "$PIDFILE"))"
+    return 0
+  fi
+
+  cd "$DIR" || return 1
   (
     trap 'rm -f "$PIDFILE"; exit 0' INT TERM EXIT
     while true; do
@@ -25,30 +29,56 @@ start() {
       sleep 10
     done
   ) >> "$LOG" 2>&1 &
-  echo $! > "$PIDFILE"
-  exit 0
+
+  echo "$!" > "$PIDFILE"
+  echo "STARTED (pid $!)"
+  return 0
 }
 
 stop() {
-  if [ -f "$PIDFILE" ]; then
-    kill "$(cat "$PIDFILE")" 2>/dev/null || true
+  if is_running; then
+    pid="$(cat "$PIDFILE" 2>/dev/null)"
+    kill "$pid" 2>/dev/null || true
+    sleep 1
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "FAILED TO STOP (pid $pid still running)" >&2
+      return 1
+    fi
   fi
-  exit 0
+
+  rm -f "$PIDFILE"
+  echo "STOPPED"
+  return 0
+}
+
+restart() {
+  stop || return 1
+  start
 }
 
 status() {
   if is_running; then
     echo "RUNNING (pid $(cat "$PIDFILE"))"
-  else
-    echo "STOPPED"
+    return 0
   fi
+
+  echo "STOPPED"
+  return 1
+}
+
+show_tail() {
+  touch "$LOG"
+  tail -n 200 "$LOG"
 }
 
 case "$1" in
   start|"") start ;;
   stop) stop ;;
-  restart) stop; sleep 1; start ;;
+  restart) restart ;;
   status) status ;;
-  tail) tail -n 200 "$LOG" ;;
-  *) echo "Usage: $0 {start|stop|restart|status|tail}"; exit 2 ;;
+  tail) show_tail ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status|tail}"
+    exit 2
+    ;;
 esac
