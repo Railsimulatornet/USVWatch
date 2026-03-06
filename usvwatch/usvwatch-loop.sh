@@ -3,12 +3,29 @@
 # Copyright (c) 2026 Roman Glos
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-PY="/usr/bin/python3"
+PY="${PYTHON:-/usr/bin/python3}"
 SCRIPT="$DIR/usvwatch.py"
 PIDFILE="$DIR/usvwatch.loop.pid"
 LOG="$DIR/usvwatch-loop.log"
+INTERVAL="${USVWATCH_LOOP_INTERVAL:-10}"
+STOP_TIMEOUT="${USVWATCH_STOP_TIMEOUT:-15}"
+
+cleanup_stale_pidfile() {
+  [ -f "$PIDFILE" ] || return 0
+  pid="$(cat "$PIDFILE" 2>/dev/null)"
+  case "$pid" in
+    ''|*[!0-9]*)
+      rm -f "$PIDFILE"
+      return 0
+      ;;
+  esac
+  if ! kill -0 "$pid" 2>/dev/null; then
+    rm -f "$PIDFILE"
+  fi
+}
 
 is_running() {
+  cleanup_stale_pidfile
   [ -f "$PIDFILE" ] || return 1
   pid="$(cat "$PIDFILE" 2>/dev/null)" || return 1
   [ -n "$pid" ] || return 1
@@ -21,46 +38,110 @@ start() {
     return 0
   fi
 
-  cd "$DIR" || return 1
-  (
-    trap 'rm -f "$PIDFILE"; exit 0' INT TERM EXIT
-    while true; do
-      "$PY" "$SCRIPT"
-      sleep 10
-    done
-  ) >> "$LOG" 2>&1 &
+  [ -f "$SCRIPT" ] || {
+    echo "ERROR: Script not found: $SCRIPT" >&2
+    return 1
+  }
 
-  echo "$!" > "$PIDFILE"
-  echo "STARTED (pid $!)"
-  return 0
+  command -v "$PY" >/dev/null 2>&1 || {
+    echo "ERROR: Python not found: $PY" >&2
+    return 1
+  }
+
+  cd "$DIR" || {
+    echo "ERROR: Cannot change to directory: $DIR" >&2
+    return 1
+  }
+
+  touch "$LOG" 2>/dev/null || true
+
+  if command -v nohup >/dev/null 2>&1; then
+    nohup sh -c '
+      LOOP_PIDFILE="$1"
+      PY_BIN="$2"
+      SCRIPT_PATH="$3"
+      LOOP_INTERVAL="$4"
+      loop_pid="$$"
+
+      cleanup() {
+        if [ -f "$LOOP_PIDFILE" ] && [ "$(cat "$LOOP_PIDFILE" 2>/dev/null)" = "$loop_pid" ]; then
+          rm -f "$LOOP_PIDFILE"
+        fi
+        exit 0
+      }
+
+      trap cleanup INT TERM HUP EXIT
+
+      while :; do
+        "$PY_BIN" "$SCRIPT_PATH"
+        sleep "$LOOP_INTERVAL"
+      done
+    ' sh "$PIDFILE" "$PY" "$SCRIPT" "$INTERVAL" >>"$LOG" 2>&1 </dev/null &
+  else
+    sh -c '
+      LOOP_PIDFILE="$1"
+      PY_BIN="$2"
+      SCRIPT_PATH="$3"
+      LOOP_INTERVAL="$4"
+      loop_pid="$$"
+
+      cleanup() {
+        if [ -f "$LOOP_PIDFILE" ] && [ "$(cat "$LOOP_PIDFILE" 2>/dev/null)" = "$loop_pid" ]; then
+          rm -f "$LOOP_PIDFILE"
+        fi
+        exit 0
+      }
+
+      trap cleanup INT TERM HUP EXIT
+
+      while :; do
+        "$PY_BIN" "$SCRIPT_PATH"
+        sleep "$LOOP_INTERVAL"
+      done
+    ' sh "$PIDFILE" "$PY" "$SCRIPT" "$INTERVAL" >>"$LOG" 2>&1 </dev/null &
+  fi
+
+  pid="$!"
+  echo "$pid" > "$PIDFILE"
+  sleep 1
+
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "STARTED (pid $pid)"
+    return 0
+  fi
+
+  rm -f "$PIDFILE"
+  echo "FAILED TO START" >&2
+  return 1
 }
 
 stop() {
-  if is_running; then
-    pid="$(cat "$PIDFILE" 2>/dev/null)"
+  if ! is_running; then
+    rm -f "$PIDFILE"
+    echo "STOPPED"
+    return 0
+  fi
 
-    kill "$pid" 2>/dev/null || true
-    pkill -TERM -P "$pid" 2>/dev/null || true
+  pid="$(cat "$PIDFILE" 2>/dev/null)"
+  kill "$pid" 2>/dev/null || true
 
-    i=0
-    while kill -0 "$pid" 2>/dev/null; do
-      i=$((i + 1))
-      if [ "$i" -ge 12 ]; then
-        break
-      fi
-      sleep 1
-    done
-
-    if kill -0 "$pid" 2>/dev/null; then
-      pkill -KILL -P "$pid" 2>/dev/null || true
-      kill -KILL "$pid" 2>/dev/null || true
-      sleep 1
+  i=0
+  while [ "$i" -lt "$STOP_TIMEOUT" ]; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      echo "STOPPED"
+      return 0
     fi
+    sleep 1
+    i=$((i + 1))
+  done
 
-    if kill -0 "$pid" 2>/dev/null; then
-      echo "FAILED TO STOP (pid $pid still running)" >&2
-      return 1
-    fi
+  kill -9 "$pid" 2>/dev/null || true
+  sleep 1
+
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "FAILED TO STOP (pid $pid still running)" >&2
+    return 1
   fi
 
   rm -f "$PIDFILE"
@@ -84,7 +165,7 @@ status() {
 }
 
 show_tail() {
-  touch "$LOG"
+  touch "$LOG" 2>/dev/null || true
   tail -n 200 "$LOG"
 }
 
