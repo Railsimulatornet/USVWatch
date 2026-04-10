@@ -223,6 +223,16 @@ def _fmt_seconds(seconds: Optional[int]) -> str:
     return f"{m} min"
 
 
+def _first_nonempty(*values: Optional[str], default: str = "-") -> str:
+    for value in values:
+        if value is None:
+            continue
+        s = str(value).strip()
+        if s:
+            return s
+    return default
+
+
 def _truncate_subject(s: str, max_len: int = 64) -> str:
     s = s.strip()
     return s if len(s) <= max_len else (s[: max_len - 1].rstrip() + "…")
@@ -532,11 +542,12 @@ def build_html(
 
     def row(k: str, v: str, bg: str = "") -> str:
         style_bg = f"background:{bg};" if bg else ""
+        value = "-" if v is None or str(v).strip() == "" else str(v)
         return (
             "<tr>"
             f"<td style='padding:6px 10px;border:1px solid #ddd;white-space:nowrap;{style_bg}'>"
             f"<b>{_html_escape(k)}</b></td>"
-            f"<td style='padding:6px 10px;border:1px solid #ddd;{style_bg}'>{_html_escape(v)}</td>"
+            f"<td style='padding:6px 10px;border:1px solid #ddd;{style_bg}'>{_html_escape(value)}</td>"
             "</tr>"
         )
 
@@ -556,12 +567,17 @@ def build_html(
     input_v = vars_.get("input.voltage", "-")
     output_v = vars_.get("output.voltage", "-")
     load = vars_.get("ups.load", "-")
-    temp = vars_.get("ups.temperature", vars_.get("temperature", "-"))
+    temp = _first_nonempty(vars_.get("ups.temperature"), vars_.get("temperature"), default="-")
 
-    mfr = vars_.get("device.mfr", vars_.get("ups.mfr", "-"))
-    model = vars_.get("device.model", vars_.get("ups.model", "-"))
-    serial = vars_.get("device.serial", vars_.get("ups.serial", "-"))
-    fw = vars_.get("ups.firmware", vars_.get("device.firmware", "-"))
+    mfr = _first_nonempty(vars_.get("device.mfr"), vars_.get("ups.mfr"), default="-")
+    model = _first_nonempty(vars_.get("device.model"), vars_.get("ups.model"), default="-")
+    serial = _first_nonempty(vars_.get("device.serial"), vars_.get("ups.serial"), default="-")
+    fw = _first_nonempty(
+        vars_.get("ups.firmware"),
+        vars_.get("device.firmware"),
+        vars_.get("ups.firmware.aux"),
+        default="-",
+    )
 
     status_value = status_human if status_human else ups_status_raw
 
