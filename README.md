@@ -1,4 +1,5 @@
-# USVWatch (UGREEN NAS)
+# UGREEN NAS USVWatch
+![USVWatch](Screens/USVWatch.png)
 
 USVWatch ist ein leichtgewichtiges Monitoring-Skript für UGREEN NAS mit UGOS Pro.
 Es liest den Status einer USV (UPS) über NUT aus und versendet bei Ereignissen und Schwellwerten einen Outlook-freundlichen HTML-Report per E-Mail.
